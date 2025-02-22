@@ -1,114 +1,255 @@
+// pages/upload.tsx
+import { FormEvent, useState } from "react";
 import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Download, Upload, Image as ImageIcon } from "lucide-react";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+export default function UploadForm() {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [formValues, setFormValues] = useState({
+    xPercent: "10",
+    yPercent: "10",
+  });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      // Create preview
+      const objectUrl = URL.createObjectURL(file);
+      setPreview(objectUrl);
+    }
+  };
 
-export default function Home() {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormValues((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleDownload = async () => {
+    if (imageUrl) {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = "processed-image." + blob.type.split("/")[1];
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append("image", selectedFile);
+      }
+
+      const response = await fetch(
+        `/api/convert?x=${formValues.xPercent}&y=${formValues.yPercent}`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const newImageUrl = URL.createObjectURL(blob);
+
+        // Cleanup old URL if it exists
+        if (imageUrl) {
+          URL.revokeObjectURL(imageUrl);
+        }
+
+        setImageUrl(newImageUrl);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Upload failed");
+      }
+    } catch (error) {
+      setError("Error processing image");
+      console.error("Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div
-      className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]`}
-    >
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/pages/index.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">
+              Image Border Generator
+            </h1>
+            <p className="mt-2 text-gray-600">
+              Add custom borders to your images
+            </p>
+          </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* File Upload Section */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Upload Image
+              </label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+                <div className="space-y-1 text-center">
+                  <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="flex text-sm text-gray-600">
+                    <label
+                      htmlFor="image"
+                      className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                    >
+                      <span>Upload a file</span>
+                      <input
+                        id="image"
+                        name="image"
+                        type="file"
+                        className="sr-only"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        required
+                      />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    PNG, JPG, GIF up to 5MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview Section */}
+            {preview && (
+              <div className="mt-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Preview:
+                </p>
+                <div className="relative h-48 w-full rounded-lg overflow-hidden">
+                  <Image
+                    src={preview}
+                    alt="Preview"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Border Controls */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="xPercent"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Horizontal Border (%)
+                </label>
+                <input
+                  style={{ color: "black" }}
+                  type="number"
+                  name="xPercent"
+                  id="xPercent"
+                  value={formValues.xPercent}
+                  onChange={handleInputChange}
+                  min="0"
+                  max="100"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="yPercent"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Vertical Border (%)
+                </label>
+                <input
+                  type="number"
+                  name="yPercent"
+                  id="yPercent"
+                  style={{ color: "black" }}
+                  value={formValues.yPercent}
+                  onChange={handleInputChange}
+                  min="0"
+                  max="100"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div>
+              <button
+                type="submit"
+                disabled={loading || !selectedFile}
+                className={`w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                  loading || !selectedFile
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Process Image
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
+              {error}
+            </div>
+          )}
+
+          {/* Result Section */}
+          {imageUrl && (
+            <div className="mt-8 space-y-4">
+              <h2 className="text-lg font-medium text-gray-900">
+                Processed Image
+              </h2>
+              <div className="relative h-96 w-full rounded-lg overflow-hidden bg-gray-100">
+                <Image
+                  src={imageUrl}
+                  alt="Processed image"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <button
+                onClick={handleDownload}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download Image
+              </button>
+            </div>
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }

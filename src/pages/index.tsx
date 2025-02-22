@@ -227,16 +227,17 @@ export default function UploadForm() {
 
           {/* Result Section */}
           {imageUrl && (
-            <div className="mt-8 space-y-4">
+            <div className="mt-8 space-y-4 ">
               <h2 className="text-lg font-medium text-gray-900">
                 Processed Image
               </h2>
-              <div className="relative h-96 w-full rounded-lg overflow-hidden bg-gray-100">
+              <div className="relative h-96 w-full rounded-lg overflow-hidden bg-gray-800">
                 <Image
                   src={imageUrl}
                   alt="Processed image"
                   fill
                   className="object-contain"
+                  style={{ border: "1px solid gray", borderRadius: 8 }}
                 />
               </div>
               <button
